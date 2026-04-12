@@ -39,6 +39,7 @@ def extract_text(image_path):
 
 from google.colab import files
 import re
+expenses = []
 
 from google.colab import userdata
 GROQ_API_KEY = userdata.get("GROQ_API_KEY")
@@ -121,6 +122,24 @@ def clean_text(text):
             useful_lines.append(line)
 
     return " ".join(useful_lines)
+def analyze_expenses():
+    df = pd.DataFrame(expenses)
+    total = df["amount"].sum()
+    category_wise = df.groupby("category")["amount"].sum()
+    return total, category_wise
+budget_limits = {
+    "Food": 3000,
+    "Transport": 2000,
+    "Entertainment": 1500
+}
+
+def check_budget(category_wise):
+    alerts = []
+    for cat, amount in category_wise.items():
+        if cat in budget_limits and amount > budget_limits[cat]:
+            alerts.append(f"Overspending in {cat}")
+    return alerts
+
 for file in uploaded.keys():
     print("\nProcessing:", file)
 
@@ -138,6 +157,7 @@ for file in uploaded.keys():
 
     result = classify_transaction(text)
     print("Groq Output:\n", result)
+    expenses.append({"amount": amount, "category": result})
 
     total_expense += amount
 
@@ -146,6 +166,14 @@ for file in uploaded.keys():
         non_essential_spending += amount
     elif "essential" in result:
         essential_spending += amount
+total, category_wise = analyze_expenses()
+print("Total Expense:", total)
+print("Category-wise spending:")
+print(category_wise)
+alerts = check_budget(category_wise)
+
+for alert in alerts:
+    print(alert)
 
 savings = total_income - total_expense
 
@@ -178,3 +206,33 @@ else:
 if non_essential_spending == 0:
     print("💡 No non-essential spending.")
     print("👉 You can invest more money.")
+
+def smart_advice(category_wise, total):
+    advice = []
+    for cat, amount in category_wise.items():
+        percent = (amount / total) * 100
+        if percent > 40:
+            advice.append(f"You are spending too much on {cat}")
+    return advice
+
+import matplotlib.pyplot as plt
+
+def plot_expenses(category_wise):
+    category_wise.plot(kind='bar')
+    plt.title("Expense Distribution")
+    plt.show()
+
+total, category_wise = analyze_expenses()
+
+print("Total खर्च:", total)
+print("Category wise:", category_wise)
+
+alerts = check_budget(category_wise)
+for alert in alerts:
+    print(alert)
+
+advice = smart_advice(category_wise, total)
+for a in advice:
+    print(a)
+
+plot_expenses(category_wise)
